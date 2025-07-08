@@ -74,6 +74,26 @@ class TradingSimulator:
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_chart)
         self.timer.setInterval(self.INTERVAL)
+        # --- Speed Control ---
+        class SpeedControl(QtCore.QObject):
+            def __init__(self, timer, interval):
+                super().__init__()
+                self.timer = timer
+                self.interval = interval
+            def set_speed(self, new_interval):
+                self.interval = max(10, min(2000, new_interval))
+                self.timer.setInterval(self.interval)
+                print(f"Playback speed: {self.interval} ms per candle")
+            def eventFilter(self, obj, event):
+                if event.type() == QtCore.QEvent.Type.KeyPress:
+                    if event.key() == Qt.Key.Key_Plus or event.key() == Qt.Key.Key_Equal:
+                        self.set_speed(self.interval - 50)
+                        return True
+                    elif event.key() == Qt.Key.Key_Minus:
+                        self.set_speed(self.interval + 50)
+                        return True
+                return False
+        self.speed_control = SpeedControl(self.timer, self.INTERVAL)
 
     def resample_df(self, df, freq):
         if self.SIM_TIMEFRAME == '1m':
@@ -128,7 +148,8 @@ class TradingSimulator:
             if self.portfolio_times:
                 xdata = [date2num(pd.Timestamp(x)) for x in self.portfolio_times]
                 self.portfolio_line.set_xdata(xdata)
-                self.ax_portfolio.set_xlim(min(xdata), max(xdata))
+                if len(set(xdata)) > 1:
+                    self.ax_portfolio.set_xlim(min(xdata), max(xdata))
             self.fig.autofmt_xdate()
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
@@ -140,3 +161,6 @@ class TradingSimulator:
 
     def stop(self):
         self.timer.stop()
+
+    def install_speed_control(self, app):
+        app.installEventFilter(self.speed_control)

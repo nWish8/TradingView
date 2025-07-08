@@ -30,28 +30,8 @@ agent = Agent(input_dim=5, initial_balance=1000, cuda=True)
 # Pass the agent to the TradingSimulator
 trading_sim = sim.TradingSimulator(config, agent=agent)
 
-# --- Speed Control ---
-class SpeedControl(QtCore.QObject):
-    def __init__(self, timer):
-        super().__init__()
-        self.timer = timer
-        self.interval = config['INTERVAL']
-    def set_speed(self, new_interval):
-        self.interval = max(10, min(2000, new_interval))
-        self.timer.setInterval(self.interval)
-        print(f"Playback speed: {self.interval} ms per candle")
-    def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.Type.KeyPress:
-            if event.key() == Qt.Key.Key_Plus or event.key() == Qt.Key.Key_Equal:
-                self.set_speed(self.interval - 50)
-                return True
-            elif event.key() == Qt.Key.Key_Minus:
-                self.set_speed(self.interval + 50)
-                return True
-        return False
-
-speed_control = SpeedControl(trading_sim.timer)
-app.installEventFilter(speed_control)
+# Install speed control event filter via the simulator
+trading_sim.install_speed_control(app)
 
 # Start the simulation
 trading_sim.start()
