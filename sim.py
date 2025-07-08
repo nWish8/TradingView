@@ -47,15 +47,30 @@ class TradingSimulator:
         self.df_resampled = self.resample_df(self.df, self.pandas_freq)
         # --- Plot Setup ---
         self.ax = fplt.create_plot(f"{self.SYMBOL} {self.SIM_TIMEFRAME} Sandbox", maximize=False)
+        # Move the sandbox window to the top middle of the screen
+        self.ax.vb.win.setWindowTitle(f"{self.SYMBOL} {self.SIM_TIMEFRAME} Sandbox")
+        screen_geometry = QApplication.primaryScreen().geometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+        self.ax.vb.win.move(screen_width // 2 - 400, 0)
+        self.ax.vb.win.resize(800, 300)  # Set a reasonable width and height
+
         # --- Portfolio Visualization ---
         plt.ion()
-        self.fig, self.ax_portfolio = plt.subplots()
+        self.fig, self.ax_portfolio = plt.subplots(figsize=(12, 3))  # Wide, short
         self.portfolio_line, = self.ax_portfolio.plot([], [], color='#00aaff', label='Portfolio Value')
-        self.ax_portfolio.set_title('Agent Portfolio Value')
+        self.ax_portfolio.set_title('Portfolio Value')
         self.ax_portfolio.set_xlabel('Time')
         self.ax_portfolio.set_ylabel('Value')
         self.ax_portfolio.legend()
         self.fig.autofmt_xdate()
+        # Move the agent window just below the sandbox window
+        mgr = plt.get_current_fig_manager()
+        try:
+            mgr.window.move(screen_width // 2 - 400, 300)
+            mgr.window.resize(800, 250)
+        except Exception:
+            pass  # Not all backends support window.move
         self.fig.show()
         # --- Simulation State ---
         self.portfolio_values = []
