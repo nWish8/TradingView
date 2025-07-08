@@ -5,3 +5,5 @@ ccxt
 yfinance
 pandas
 finplot
+torch
+matplotlib
