@@ -1,0 +1,3 @@
+[submodule "Sandbox/MarS"]
+	path = Sandbox/MarS
+	url = https://github.com/microsoft/MarS.git
