@@ -73,7 +73,7 @@ fig.show()
 portfolio_values = []
 portfolio_times = []
 window_size = WINDOW_SIZE
-current_idx = 24 * (1 if SIM_TIMEFRAME == '1m' else int(pd.Timedelta(pandas_freq).total_seconds() // 60))
+current_idx = WINDOW_SIZE/2 * (1 if SIM_TIMEFRAME == '1m' else int(pd.Timedelta(pandas_freq).total_seconds() // 60))
 plot = None
 one_minute_df = df[['open', 'high', 'low', 'close', 'volume']].copy()
 
