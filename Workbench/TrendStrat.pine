@@ -1,0 +1,101 @@
+//@version=5
+strategy("RSI Div Trend Reversal Strategy", overlay=true, initial_capital=1000, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+// Inputs for moving averages
+fastLength = input.int(9, title="Fast MA Length")
+slowLength = input.int(21, title="Slow MA Length")
+rsiLength = input.int(14, title="RSI Length")
+
+// Risk management options
+useATRStops = input.bool(true, "Use ATR-based Stops", group="Risk Management")
+atrLen = input.int(14, "ATR Length", group="Risk Management")
+atrMult = input.float(2.0, "ATR Multiplier", group="Risk Management")
+useFixedSL = input.bool(false, "Use Fixed % Stop Loss", group="Risk Management")
+fixedSLPercent = input.float(2.0, "Fixed Stop Loss %", group="Risk Management")
+useFixedTP = input.bool(false, "Use Fixed % Take Profit", group="Risk Management")
+fixedTPPercent = input.float(4.0, "Fixed Take Profit %", group="Risk Management")
+
+// Option to show ATR line
+showATR = input.bool(false, "Show ATR Line", group="Risk Management")
+
+// Calculate moving averages
+fastMA = ta.sma(close, fastLength)
+slowMA = ta.sma(close, slowLength)
+
+// Trend logic
+trendUp = fastMA > slowMA
+trendDown = fastMA < slowMA
+
+// --- RSI Divergence Logic (adapted from v6) ---
+lookbackRight = 5
+lookbackLeft = 5
+rangeUpper = 60
+rangeLower = 5
+bearColor = color.red
+bullColor = color.green
+textColor = color.white
+noneColor = color.new(color.white, 100)
+
+rsi = ta.rsi(close, rsiLength)
+
+_inRange(cond) =>
+    bars = ta.barssince(cond)
+    rangeLower <= bars and bars <= rangeUpper
+
+var plFound = false
+var phFound = false
+var bullCond = false
+var bearCond = false
+rsiLBR = rsi[lookbackRight]
+
+// Regular Bullish
+plFound := not na(ta.pivotlow(rsi, lookbackLeft, lookbackRight))    
+rsiHL = rsiLBR > ta.valuewhen(plFound, rsiLBR, 1) and _inRange(plFound[1])
+lowLBR = low[lookbackRight]
+priceLL = lowLBR < ta.valuewhen(plFound, lowLBR, 1)
+bullCond := priceLL and rsiHL and plFound
+
+// Regular Bearish
+phFound := not na(ta.pivothigh(rsi, lookbackLeft, lookbackRight))
+rsiLH = rsiLBR < ta.valuewhen(phFound, rsiLBR, 1) and _inRange(phFound[1])
+highLBR = high[lookbackRight]
+priceHH = highLBR > ta.valuewhen(phFound, highLBR, 1)
+bearCond := priceHH and rsiLH and phFound
+
+// --- Entry/Exit Logic ---
+atr = ta.atr(atrLen)
+longStop = useATRStops ? close - atr * atrMult : na
+longTP = useATRStops ? close + atr * atrMult : na
+shortStop = useATRStops ? close + atr * atrMult : na
+shortTP = useATRStops ? close - atr * atrMult : na
+longStopFixed = useFixedSL ? close * (1 - fixedSLPercent / 100) : na
+longTPFixed = useFixedTP ? close * (1 + fixedTPPercent / 100) : na
+shortStopFixed = useFixedSL ? close * (1 + fixedSLPercent / 100) : na
+shortTPFixed = useFixedTP ? close * (1 - fixedTPPercent / 100) : na
+
+// Entry on bullish divergence in bearish trend
+if bullCond and trendDown
+    strategy.entry("Long", strategy.long)
+    if useATRStops or useFixedSL or useFixedTP
+        strategy.exit("Long Exit", from_entry="Long", stop=useATRStops ? longStop : longStopFixed, limit=useATRStops ? longTP : longTPFixed)
+// Entry on bearish divergence in bullish trend
+if bearCond and trendUp
+    strategy.entry("Short", strategy.short)
+    if useATRStops or useFixedSL or useFixedTP
+        strategy.exit("Short Exit", from_entry="Short", stop=useATRStops ? shortStop : shortStopFixed, limit=useATRStops ? shortTP : shortTPFixed)
+
+// Plot moving averages
+p1 = plot(fastMA, color=color.green, title="Fast MA")
+p2 = plot(slowMA, color=color.red, title="Slow MA")
+fill(p1, p2, color=trendUp ? color.new(color.green, 80) : trendDown ? color.new(color.red, 80) : na, title="Trend Cloud")
+
+// Plot RSI divergence as tiny diamonds on price chart
+plotshape(bullCond ? low[lookbackRight] : na, title="RSI Bull Div", style=shape.diamond, location=location.belowbar, color=bullColor, size=size.small, offset=-lookbackRight)
+plotshape(bearCond ? high[lookbackRight] : na, title="RSI Bear Div", style=shape.diamond, location=location.abovebar, color=bearColor, size=size.small, offset=-lookbackRight)
+
+// Optional: plot up/down arrows for trend changes
+plotshape(ta.crossover(fastMA, slowMA), title="Trend Up", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.tiny)
+plotshape(ta.crossunder(fastMA, slowMA), title="Trend Down", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
+
+// Plot ATR line if enabled
+plot(showATR ? atr : na, color=color.purple, title="ATR", linewidth=2, style=plot.style_line)

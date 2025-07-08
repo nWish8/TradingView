@@ -1,0 +1,7 @@
+PyQt5
+pyqtgraph
+numpy
+ccxt
+yfinance
+pandas
+finplot
